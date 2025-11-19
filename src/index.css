@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+:root {
+  --background: 210 20% 98%;
+  --foreground: 215 25% 27%;
+  --card: 0 0% 100%;
+  --card-foreground: 215 25% 27%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 215 25% 27%;
+  --primary: 174 62% 47%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 20% 96%;
+  --secondary-foreground: 215 25% 27%;
+  --muted: 210 20% 96%;
+  --muted-foreground: 215 16% 47%;
+  --accent: 174 44% 93%;
+  --accent-foreground: 174 62% 27%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 210 20% 90%;
+  --input: 210 20% 90%;
+  --ring: 174 62% 47%;
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 205 100% 50%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 212.7 26.8% 83.9%;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+body {
+  background-color: hsl(var(--background));
+  background-image: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(210 20% 97%) 100%);
+  background-attachment: fixed;
+  color: hsl(var(--foreground));
+  font-feature-settings: "rlig" 1, "calt" 1;
+}
+
+/* Custom Healthcare Styles */
+.medical-teal {
+  color: #14b8a6;
+}
+
+/* Card enhancements */
+.card-enhanced {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.2s ease;
+}
+
+.card-enhanced:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.status-closed {
+  background-color: rgb(209 250 229);
+  color: rgb(6 95 70);
+  border-color: rgb(167 243 208);
+}
+
+.status-open {
+  background-color: rgb(254 226 226);
+  color: rgb(127 29 29);
+  border-color: rgb(252 165 165);
+}
+
+.status-priority {
+  background-color: rgb(254 243 199);
+  color: rgb(146 64 14);
+  border-color: rgb(253 224 71);
+}
+
+.status-pending {
+  background-color: rgb(241 245 249);
+  color: rgb(51 65 85);
+  border-color: rgb(203 213 225);
+}
+
+/* Smooth transitions */
+* {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+/* Screen reader only class */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
