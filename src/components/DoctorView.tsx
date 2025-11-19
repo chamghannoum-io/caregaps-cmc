@@ -402,9 +402,9 @@ function GapCard({ gap, isExpanded, onToggle }: GapCardProps) {
             </div>
           </div>
 
-          <div className="bg-teal-50 p-3 rounded-md border border-teal-100">
-            <p className="text-sm font-medium text-teal-900 mb-1">Recommended Action</p>
-            <p className="text-sm text-teal-800">{gap.recommendedAction}</p>
+          <div className="p-3 rounded-md border" style={{ backgroundColor: '#f0fdfa', borderColor: '#ccfbf1' }}>
+            <p className="text-sm font-medium mb-1" style={{ color: '#134e4a' }}>Recommended Action</p>
+            <p className="text-sm" style={{ color: '#115e59' }}>{gap.recommendedAction}</p>
           </div>
 
           <div className="flex gap-2 flex-wrap">

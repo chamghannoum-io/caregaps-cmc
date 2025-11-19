@@ -8,11 +8,11 @@ interface PatientHeaderProps {
 
 export function PatientHeader({ patient }: PatientHeaderProps) {
   return (
-    <Card className="mb-6 border-l-4 border-l-primary shadow-md bg-gradient-to-r from-white to-teal-50/30">
+    <Card className="mb-6 border-l-4 shadow-md" style={{ borderLeftColor: '#14b8a6', background: 'linear-gradient(to right, #ffffff, #f0fdfa)' }}>
       <CardContent className="p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: '#ccfbf1', color: '#14b8a6' }}>
               <User className="h-8 w-8" aria-hidden="true" />
             </div>
             <div>

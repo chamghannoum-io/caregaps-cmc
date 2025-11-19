@@ -45,7 +45,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ backgroundColor: '#F9FAFB', backgroundImage: 'linear-gradient(180deg, #F9FAFB 0%, #F3F4F6 100%)' }}>
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Skip Links for Accessibility */}
         <a

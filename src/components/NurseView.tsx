@@ -234,8 +234,8 @@ export function NurseView({ questions, onSubmit }: NurseViewProps) {
               </div>
 
               {question.helpText && (
-                <div className="flex items-start gap-2 text-sm text-muted-foreground bg-teal-50 p-3 rounded-md">
-                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-teal-600" aria-hidden="true" />
+                <div className="flex items-start gap-2 text-sm p-3 rounded-md" style={{ backgroundColor: '#f0fdfa', color: '#0f766e' }}>
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#14b8a6' }} aria-hidden="true" />
                   <p>{question.helpText}</p>
                 </div>
               )}
