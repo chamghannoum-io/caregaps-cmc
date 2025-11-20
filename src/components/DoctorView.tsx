@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PatientHeader } from './PatientHeader'
+import { Toast } from './Toast'
+import type { ToastType } from './Toast'
 import { 
   CheckCircle, 
   Clock,
@@ -37,6 +39,24 @@ interface GapData {
   primarySpeciality: string
   supportingSpeciality: string
   requiresReferral: boolean
+  benefitsInfo?: {
+    payerName: string
+    memberId: string
+    network: string
+    classification: string
+    benefitType: string
+    benefitLabel: string
+    isCovered: boolean
+    accessMethod: string
+    patientPays: string
+    planPays: string
+    coverageNotes: string
+    requiresPreauth: boolean
+    coverageStatus: string
+    coverageLevel: 'FULL' | 'PARTIAL' | 'NONE'
+    estimatedTotalCostAed: number
+    estimatedPatientCostAed: number
+  }
   nurseQuestionnaire: {
     wasAsked: boolean
     wasClosed: boolean
@@ -63,11 +83,19 @@ interface DashboardData {
     primaryCare: { count: number; gaps: GapData[] }
     specialist: { count: number; gaps: GapData[] }
   }
+  benefitSummary?: {
+    fullyCovered: number
+    partiallyCovered: number
+    notCovered: number
+    network: string
+    payer: string
+  }
 }
 
 export function DoctorView({ dashboardData: propDashboardData, patientData }: DoctorViewProps) {
   const [dashboardData] = useState<DashboardData | null>(propDashboardData || null)
   const [expandedGaps, setExpandedGaps] = useState<Set<string>>(new Set())
+  const [toast, setToast] = useState<{ type: ToastType; title: string; description?: string } | null>(null)
 
   const toggleGap = (gapId: string) => {
     setExpandedGaps(prev => {
@@ -84,21 +112,68 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
   const handleAction = (gapId: string, action: string) => {
     console.log(`Action ${action} on gap ${gapId}`)
     
-    const actionMessages: Record<string, string> = {
-      mark_complete: '✓ Gap marked as complete',
-      schedule_appointment: '📅 Appointment scheduled',
-      defer: '⏰ Gap deferred for later review',
-      request_referral: '📄 Referral request submitted'
+    const actionMessages: Record<string, { title: string; description: string }> = {
+      mark_complete: { 
+        title: 'Gap marked as complete',
+        description: 'The care gap has been successfully marked as complete.'
+      },
+      schedule_appointment: { 
+        title: 'Appointment scheduled',
+        description: 'The appointment has been scheduled for this care gap.'
+      },
+      defer: { 
+        title: 'Gap deferred',
+        description: 'This care gap has been deferred for later review.'
+      },
+      request_referral: { 
+        title: 'Referral request submitted',
+        description: 'The referral request has been successfully submitted.'
+      }
     }
 
+    // Show toast notification
+    const message = actionMessages[action] || { title: 'Action recorded', description: 'The action has been recorded.' }
+    setToast({ type: 'success', ...message })
+
     // TODO: Send action back to n8n for logging
-    alert(actionMessages[action] || 'Action recorded')
   }
 
   const renderGapRow = (gap: GapData) => {
     const isExpanded = expandedGaps.has(gap.ruleId)
     const status = gap.nurseQuestionnaire.status
     const wasClosed = status === 'CLOSED_BY_NURSE'
+    const benefitsInfo = gap.benefitsInfo
+
+    // Determine coverage badge
+    const getCoverageBadge = () => {
+      if (!benefitsInfo) {
+        return (
+          <Badge variant="outline" className="text-muted-foreground text-xs">
+            No Info
+          </Badge>
+        )
+      }
+
+      if (benefitsInfo.coverageLevel === 'FULL') {
+        return (
+          <Badge className="bg-green-100 text-green-800 border-green-200 text-xs">
+            ✓ Fully Covered
+          </Badge>
+        )
+      } else if (benefitsInfo.coverageLevel === 'PARTIAL') {
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">
+            Partial Coverage
+          </Badge>
+        )
+      } else {
+        return (
+          <Badge className="bg-red-100 text-red-800 border-red-200 text-xs">
+            Not Covered
+          </Badge>
+        )
+      }
+    }
 
     return (
       <>
@@ -118,7 +193,7 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
                     {gap.clinicalCriticality}
                   </Badge>
                   {wasClosed && (
-                    <Badge className="bg-green-600 text-xs">
+                    <Badge className="bg-green-600 text-white text-xs">
                       <CheckCircle className="h-3 w-3 mr-1" />
                       Closed
                     </Badge>
@@ -128,18 +203,20 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
             </div>
           </td>
           <td className="p-4 text-center">
-            {gap.isCovered ? (
-              <Badge className="bg-green-100 text-green-800 border-green-200">
-                ✓ Covered
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-muted-foreground">
-                Not Covered
-              </Badge>
-            )}
+            {getCoverageBadge()}
           </td>
-          <td className="p-4 text-sm text-muted-foreground">
-            {gap.essentialPlanCover}
+          <td className="p-4 text-sm text-foreground">
+            {benefitsInfo?.benefitType || gap.essentialPlanCover}
+          </td>
+          <td className="p-4 text-sm">
+            {benefitsInfo ? (
+              <div className="space-y-1">
+                <div className="text-green-700 font-medium">Plan: {benefitsInfo.planPays}</div>
+                <div className="text-muted-foreground text-xs">Patient: {benefitsInfo.patientPays}</div>
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-xs">N/A</span>
+            )}
           </td>
           <td className="p-4" onClick={(e) => e.stopPropagation()}>
             {!wasClosed && (
@@ -186,7 +263,7 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
         {/* Expanded Details Row */}
         {isExpanded && (
           <tr key={`${gap.ruleId}-details`} className="border-b border-border bg-muted/30">
-            <td colSpan={4} className="p-6">
+            <td colSpan={5} className="p-6">
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
@@ -214,6 +291,28 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
                   </div>
                 </div>
 
+                {benefitsInfo && (
+                  <div className="bg-blue-50 p-4 rounded border border-blue-200">
+                    <h4 className="font-semibold text-sm mb-3 text-blue-900 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Insurance Coverage Details
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <p className="text-blue-700"><span className="font-semibold">Network:</span> {benefitsInfo.network}</p>
+                        <p className="text-blue-700"><span className="font-semibold">Payer:</span> {benefitsInfo.payerName}</p>
+                        <p className="text-blue-700"><span className="font-semibold">Classification:</span> {benefitsInfo.classification}</p>
+                      </div>
+                      <div>
+                        <p className="text-blue-700"><span className="font-semibold">Access Method:</span> {benefitsInfo.accessMethod}</p>
+                        <p className="text-blue-700"><span className="font-semibold">Pre-auth Required:</span> {benefitsInfo.requiresPreauth ? 'Yes' : 'No'}</p>
+                        <p className="text-blue-700"><span className="font-semibold">Benefit Label:</span> {benefitsInfo.benefitLabel}</p>
+                        <p className="text-blue-700"><span className="font-semibold">Coverage Status:</span> {benefitsInfo.coverageStatus}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {gap.nurseQuestionnaire.wasAsked && (
                   <div className="bg-green-50 p-3 rounded border border-green-200">
                     <p className="font-semibold text-sm mb-1 text-green-900">Nurse Response:</p>
@@ -223,9 +322,9 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
                   </div>
                 )}
 
-                <div className="bg-blue-50 p-3 rounded text-sm border border-blue-200">
-                  <p className="font-semibold mb-1 text-blue-900">Notes:</p>
-                  <p className="text-blue-800">{gap.notesTOB}</p>
+                <div className="bg-slate-50 p-3 rounded text-sm border border-gray-200">
+                  <p className="font-semibold mb-1 text-gray-900">Clinical Notes:</p>
+                  <p className="text-gray-700">{gap.notesTOB}</p>
                 </div>
               </div>
             </td>
@@ -250,8 +349,9 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left p-4 font-semibold text-sm text-foreground">Gap / Guideline</th>
-                <th className="text-center p-4 font-semibold text-sm w-32 text-foreground">Covered</th>
-                <th className="text-left p-4 font-semibold text-sm w-48 text-foreground">Practice Standard</th>
+                <th className="text-center p-4 font-semibold text-sm w-40 text-foreground">Coverage</th>
+                <th className="text-left p-4 font-semibold text-sm w-40 text-foreground">Benefit Type</th>
+                <th className="text-left p-4 font-semibold text-sm w-32 text-foreground">Copay</th>
                 <th className="text-left p-4 font-semibold text-sm w-40 text-foreground">Actions</th>
               </tr>
             </thead>
@@ -287,6 +387,16 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
 
   return (
     <div className="space-y-6">
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast
+          type={toast.type}
+          title={toast.title}
+          description={toast.description}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       {/* Patient Header */}
       {patientData && (
         <div className="animate-slide-in">
@@ -326,6 +436,43 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
           </div>
         </CardContent>
       </Card>
+
+      {/* Benefits Summary */}
+      {dashboardData.benefitSummary && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Insurance Benefits Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                  <span className="text-sm font-medium text-green-900">Fully Covered</span>
+                  <span className="text-2xl font-bold text-green-600">{dashboardData.benefitSummary.fullyCovered}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <span className="text-sm font-medium text-yellow-900">Partially Covered</span>
+                  <span className="text-2xl font-bold text-yellow-600">{dashboardData.benefitSummary.partiallyCovered}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                  <span className="text-sm font-medium text-red-900">Not Covered</span>
+                  <span className="text-2xl font-bold text-red-600">{dashboardData.benefitSummary.notCovered}</span>
+                </div>
+              </div>
+              <div className="flex flex-col justify-center space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div>
+                  <p className="text-xs text-blue-700 font-semibold mb-1">Insurance Network</p>
+                  <p className="text-lg font-bold text-blue-900">{dashboardData.benefitSummary.network}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-700 font-semibold mb-1">Insurance Payer</p>
+                  <p className="text-sm text-blue-900">{dashboardData.benefitSummary.payer}</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Primary Care Section */}
       {renderTable(
