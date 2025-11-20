@@ -245,7 +245,7 @@ export function DoctorView({ dashboardData: propDashboardData, patientData, onRe
                 <p className="font-semibold text-sm text-foreground">{gap.guideline}</p>
                 <div className="flex items-center gap-2 mt-1">
                   <Badge variant={gap.clinicalCriticality === 'High' ? 'destructive' : gap.clinicalCriticality === 'Medium' ? 'default' : 'secondary'} className="text-xs">
-                    {gap.clinicalCriticality}
+                    {gap.clinicalCriticality} Priority
                   </Badge>
                   {wasClosed && (
                     <Badge className="bg-green-600 text-white text-xs">

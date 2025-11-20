@@ -1,376 +1,132 @@
 # Deployment Guide
 
-This guide covers deploying the Care Gap Management System to various platforms.
+## 🚀 Deploy to Vercel
+
+### Quick Deploy
+
+1. **Push to GitHub**
+   ```bash
+   git add .
+   git commit -m "Ready for Vercel deployment"
+   git push origin master
+   ```
+
+2. **Deploy to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your `caregaps-cmc` repository
+   - Configure environment variables (see below)
+   - Click "Deploy"
+
+### Environment Variables
+
+Add these in Vercel Dashboard → Settings → Environment Variables:
+
+```
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_BUCKET=patients
+```
+
+### How It Works
+
+The app uses **Vercel Serverless Functions** for the proxy:
+- `/api/webhook` - Proxies requests to n8n webhook
+- `/api/resume` - Proxies resume requests to n8n
+
+No separate proxy server needed! ✨
 
 ---
 
-## 📦 Build for Production
+## 🏠 Local Development
 
-### 1. Install Dependencies
+### With Local Proxy (Old Method)
 
-```bash
-npm install
-```
+If you prefer the local proxy server:
 
-### 2. Build the Application
+1. Create `.env` file:
+   ```
+   VITE_SUPABASE_ANON_KEY=your_key
+   VITE_SUPABASE_BUCKET=patients
+   VITE_PROXY_URL=http://localhost:3002
+   ```
 
-```bash
-npm run build
-```
+2. Start proxy server:
+   ```bash
+   node proxy-server.cjs
+   ```
 
-This creates an optimized production build in the `dist/` directory.
+3. Start dev server:
+   ```bash
+   npm run dev
+   ```
 
-### 3. Preview Locally
+### With Vercel Dev (Recommended)
 
-```bash
-npm run preview
-```
-
-Visit `http://localhost:4173` to preview the production build.
-
----
-
-## 🌐 Deployment Options
-
-### Vercel (Recommended)
-
-**Easy one-click deployment**
-
-1. Push your code to GitHub
-2. Visit [vercel.com](https://vercel.com)
-3. Import your repository
-4. Vercel auto-detects Vite configuration
-5. Click "Deploy"
-
-**Or use Vercel CLI:**
+Test the serverless functions locally:
 
 ```bash
 npm install -g vercel
-vercel
+vercel dev
 ```
+
+This runs both the frontend and API routes locally!
+
+---
+
+## 🌐 Alternative Hosting
 
 ### Netlify
 
-1. Push your code to GitHub
-2. Visit [netlify.com](https://netlify.com)
-3. Click "Add new site" → "Import an existing project"
-4. Connect to GitHub
-5. Configure build settings:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-6. Click "Deploy"
-
-**Or use Netlify CLI:**
-
-```bash
-npm install -g netlify-cli
-netlify deploy --prod
-```
-
-### GitHub Pages
-
-1. Install gh-pages:
-
-```bash
-npm install -D gh-pages
-```
-
-2. Update `vite.config.ts`:
-
-```typescript
-export default defineConfig({
-  plugins: [react()],
-  base: '/your-repo-name/',
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-})
-```
-
-3. Add to `package.json`:
-
-```json
-{
-  "scripts": {
-    "deploy": "vite build && gh-pages -d dist"
-  }
-}
-```
-
-4. Deploy:
-
-```bash
-npm run deploy
-```
-
-### AWS Amplify
-
-1. Push code to GitHub
-2. Visit [AWS Amplify Console](https://console.aws.amazon.com/amplify/)
-3. Click "New app" → "Host web app"
-4. Connect to GitHub
-5. Build settings:
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-6. Click "Save and deploy"
-
-### Azure Static Web Apps
-
-1. Push code to GitHub
-2. Visit [Azure Portal](https://portal.azure.com)
-3. Create "Static Web App"
-4. Connect to GitHub
-5. Build configuration:
-   - App location: `/`
-   - Output location: `dist`
-6. Click "Create"
+1. Build command: `npm run build`
+2. Publish directory: `dist`
+3. Add environment variables
+4. Note: You'll need to deploy the proxy separately (Render/Railway)
 
 ### Cloudflare Pages
 
-1. Push code to GitHub
-2. Visit [Cloudflare Pages](https://pages.cloudflare.com/)
-3. Click "Create a project"
-4. Connect to GitHub
-5. Build settings:
-   - Build command: `npm run build`
-   - Build output directory: `dist`
-6. Click "Save and Deploy"
-
-### Docker
-
-Create `Dockerfile`:
-
-```dockerfile
-FROM node:18-alpine as build
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci
-
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-
-Create `nginx.conf`:
-
-```nginx
-server {
-    listen 80;
-    server_name localhost;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
-}
-```
-
-Build and run:
-
-```bash
-docker build -t caregaps-cmc .
-docker run -p 80:80 caregaps-cmc
-```
+1. Build command: `npm run build`
+2. Output directory: `dist`
+3. Add environment variables
+4. Note: Convert API routes to Cloudflare Workers
 
 ---
 
-## ⚙️ Environment Variables
+## 🔧 Troubleshooting
 
-If you need environment variables:
+### CORS Errors
 
-1. Create `.env` file:
+If you see CORS errors:
+- Check that your n8n instance allows requests from your Vercel domain
+- Verify the webhook URLs are correct
+- Check browser console for details
 
-```env
-VITE_API_URL=https://api.example.com
-VITE_APP_NAME=Care Gap Management
-```
+### API Routes Not Working
 
-2. Access in code:
+- Ensure `vercel.json` exists in root directory
+- Check Vercel deployment logs
+- Verify API routes are in `/api` folder
 
-```typescript
-const apiUrl = import.meta.env.VITE_API_URL
-```
+### Environment Variables
 
-3. Configure in deployment platform:
-   - **Vercel**: Project Settings → Environment Variables
-   - **Netlify**: Site Settings → Environment Variables
-   - **Others**: Check platform documentation
-
----
-
-## 🔒 Security Considerations
-
-### Headers
-
-Add security headers in your deployment platform:
-
-```
-X-Frame-Options: DENY
-X-Content-Type-Options: nosniff
-Referrer-Policy: strict-origin-when-cross-origin
-Permissions-Policy: geolocation=(), microphone=(), camera=()
-```
-
-### HTTPS
-
-Always use HTTPS in production. Most platforms enable this by default.
-
-### CSP (Content Security Policy)
-
-Add to your `index.html` or server configuration:
-
-```html
-<meta 
-  http-equiv="Content-Security-Policy" 
-  content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
->
-```
+- Vercel requires `VITE_` prefix for client-side variables
+- Redeploy after changing environment variables
+- Check Settings → Environment Variables in Vercel dashboard
 
 ---
 
-## 📊 Performance Optimization
+## ✅ Checklist Before Deploy
 
-### Compression
-
-Enable gzip/brotli compression on your server or CDN.
-
-### Caching
-
-Set cache headers for static assets:
-
-```
-Cache-Control: public, max-age=31536000, immutable
-```
-
-### CDN
-
-Use a CDN for faster global delivery:
-- Cloudflare
-- AWS CloudFront
-- Vercel Edge Network (automatic)
+- [ ] Environment variables set in Vercel
+- [ ] n8n webhook URL is accessible
+- [ ] Supabase credentials are correct
+- [ ] Git repository is up to date
+- [ ] Build completes successfully locally (`npm run build`)
 
 ---
 
-## 🔍 Monitoring
+## 📝 Notes
 
-### Error Tracking
-
-Consider integrating:
-- [Sentry](https://sentry.io/)
-- [LogRocket](https://logrocket.com/)
-- [Rollbar](https://rollbar.com/)
-
-### Analytics
-
-Add web analytics:
-- Google Analytics
-- Plausible
-- Fathom Analytics
-
-### Performance
-
-Monitor with:
-- [Lighthouse](https://developers.google.com/web/tools/lighthouse)
-- [WebPageTest](https://www.webpagetest.org/)
-- [Google PageSpeed Insights](https://pagespeed.web.dev/)
-
----
-
-## 🧪 CI/CD
-
-### GitHub Actions
-
-Create `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-          
-      - name: Install dependencies
-        run: npm ci
-        
-      - name: Build
-        run: npm run build
-        
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v20
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.ORG_ID }}
-          vercel-project-id: ${{ secrets.PROJECT_ID }}
-```
-
----
-
-## 🆘 Troubleshooting
-
-### Build Fails
-
-1. Clear cache: `rm -rf node_modules dist && npm install`
-2. Check Node version: `node -v` (should be 18+)
-3. Check for TypeScript errors: `npm run build`
-
-### Routing Issues
-
-If routes don't work after deployment, configure your platform:
-
-**Vercel** - Create `vercel.json`:
-```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
-```
-
-**Netlify** - Create `_redirects` in `public/`:
-```
-/*    /index.html   200
-```
-
-### Blank Page
-
-1. Check browser console for errors
-2. Verify base URL in `vite.config.ts`
-3. Check that all assets are loading
-
----
-
-## 📚 Additional Resources
-
-- [Vite Deployment Guide](https://vitejs.dev/guide/static-deploy.html)
-- [React Deployment Docs](https://react.dev/learn/start-a-new-react-project#deploying-to-production)
-- [Vercel Documentation](https://vercel.com/docs)
-- [Netlify Documentation](https://docs.netlify.com/)
-
----
-
-Need help? Check the [main README](./README.md) or open an issue on GitHub.
-
+- Vercel serverless functions have a 10-second timeout on hobby plan
+- API routes automatically handle CORS
+- No need to run separate proxy server
+- Automatic HTTPS included

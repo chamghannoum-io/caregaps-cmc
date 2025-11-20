@@ -10,15 +10,15 @@ interface PriorityBadgeProps {
 export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
   const config = {
     HIGH: {
-      label: 'HIGH',
+      label: 'High Priority',
       className: 'bg-red-100 text-red-800 hover:bg-red-200 border-red-200',
     },
     MEDIUM: {
-      label: 'MEDIUM',
+      label: 'Medium Priority',
       className: 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200 border-yellow-200',
     },
     LOW: {
-      label: 'LOW',
+      label: 'Low Priority',
       className: 'bg-green-100 text-green-800 hover:bg-green-200 border-green-200',
     },
   }

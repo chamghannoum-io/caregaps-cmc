@@ -3,7 +3,8 @@
  * Handles communication with n8n via CORS proxy
  */
 
-const PROXY_URL = 'http://localhost:3002';
+// Use environment variable for proxy URL, fallback to relative path for Vercel
+const PROXY_URL = import.meta.env.VITE_PROXY_URL || '/api';
 const WEBHOOK_ID = '97f934a7-db3a-478f-a0f0-1cebca68112d';
 
 export const webhookService = {
