@@ -1,48 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: 210 20% 98%;
-  --foreground: 215 25% 27%;
+  /* iO Cortex navy theme */
+  --background: 220 15% 97%;
+  --foreground: 225 45% 15%; /* Navy text */
   --card: 0 0% 100%;
-  --card-foreground: 215 25% 27%;
+  --card-foreground: 225 45% 15%;
   --popover: 0 0% 100%;
-  --popover-foreground: 215 25% 27%;
-  --primary: 174 62% 47%;
+  --popover-foreground: 225 45% 15%;
+  --primary: 225 45% 15%; /* Cortex Navy #1e2951 */
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 20% 96%;
-  --secondary-foreground: 215 25% 27%;
-  --muted: 210 20% 96%;
-  --muted-foreground: 215 16% 47%;
-  --accent: 174 44% 93%;
-  --accent-foreground: 174 62% 27%;
-  --destructive: 0 84.2% 60.2%;
+  --secondary: 225 40% 20%; /* Darker navy for secondary */
+  --secondary-foreground: 0 0% 100%;
+  --muted: 220 15% 95%;
+  --muted-foreground: 225 20% 40%;
+  --accent: 217 91% 60%; /* Cortex blue for accents */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84% 60%;
   --destructive-foreground: 0 0% 100%;
-  --border: 210 20% 90%;
-  --input: 210 20% 90%;
-  --ring: 174 62% 47%;
+  --border: 220 13% 91%;
+  --input: 220 13% 91%;
+  --ring: 225 45% 15%;
   --radius: 0.5rem;
-}
-
-.dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 205 100% 50%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 212.7 26.8% 83.9%;
 }
 
 * {
@@ -51,10 +30,14 @@
 
 body {
   background-color: hsl(var(--background));
-  background-image: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(210 20% 97%) 100%);
-  background-attachment: fixed;
   color: hsl(var(--foreground));
   font-feature-settings: "rlig" 1, "calt" 1;
+  min-height: 100vh;
+}
+
+body {
+  background-image: linear-gradient(180deg, hsl(210 20% 98%) 0%, hsl(210 20% 96%) 100%);
+  background-attachment: fixed;
 }
 
 /* Custom Healthcare Styles */

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { PatientHeader } from './PatientHeader'
 import { 
   CheckCircle, 
   Clock,
@@ -17,6 +18,7 @@ import { EmptyState } from './EmptyState'
 
 interface DoctorViewProps {
   dashboardData?: DashboardData | null
+  patientData?: any
 }
 
 interface GapData {
@@ -63,7 +65,7 @@ interface DashboardData {
   }
 }
 
-export function DoctorView({ dashboardData: propDashboardData }: DoctorViewProps) {
+export function DoctorView({ dashboardData: propDashboardData, patientData }: DoctorViewProps) {
   const [dashboardData] = useState<DashboardData | null>(propDashboardData || null)
   const [expandedGaps, setExpandedGaps] = useState<Set<string>>(new Set())
 
@@ -93,168 +95,170 @@ export function DoctorView({ dashboardData: propDashboardData }: DoctorViewProps
     alert(actionMessages[action] || 'Action recorded')
   }
 
-  const renderGapCard = (gap: GapData) => {
+  const renderGapRow = (gap: GapData) => {
     const isExpanded = expandedGaps.has(gap.ruleId)
     const status = gap.nurseQuestionnaire.status
     const wasClosed = status === 'CLOSED_BY_NURSE'
 
     return (
-      <Card 
-        key={gap.ruleId} 
-        className={`mb-3 ${wasClosed ? 'border-green-200 bg-green-50' : ''}`}
-      >
-        <CardHeader 
-          className="cursor-pointer hover:bg-slate-50 transition-colors pb-4"
+      <>
+        {/* Main Row */}
+        <tr 
+          key={gap.ruleId}
+          className={`border-b border-border hover:bg-muted/50 cursor-pointer ${wasClosed ? 'bg-green-50' : 'bg-card'}`}
           onClick={() => toggleGap(gap.ruleId)}
         >
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                <CardTitle className="text-base">{gap.guideline}</CardTitle>
-              </div>
-              
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant={gap.clinicalCriticality === 'High' ? 'destructive' : gap.clinicalCriticality === 'Medium' ? 'default' : 'secondary'}>
-                  {gap.clinicalCriticality}
-                </Badge>
-                
-                {wasClosed ? (
-                  <Badge className="bg-green-600">
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Closed by Nurse
-                  </Badge>
-                ) : status === 'NOT_ASKED' ? (
-                  <Badge variant="outline">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Requires Action
-                  </Badge>
-                ) : null}
-
-                <Badge variant="outline">{gap.category}</Badge>
-              </div>
-
-              {wasClosed && gap.nurseQuestionnaire.patientAnswer && (
-                <p className="text-sm text-green-700 mt-2">
-                  Nurse: {gap.nurseQuestionnaire.patientAnswer} - {gap.nurseQuestionnaire.closureReason}
-                </p>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-
-        {isExpanded && (
-          <CardContent className="pt-0 border-t">
-            <div className="space-y-4 mt-4">
+          <td className="p-4">
+            <div className="flex items-center gap-2">
+              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <div>
-                <h4 className="font-semibold text-sm mb-1">Gap Description</h4>
-                <p className="text-sm text-muted-foreground">{gap.gap}</p>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-sm mb-1">Recommended Action</h4>
-                <p className="text-sm text-muted-foreground">{gap.recommendedAction}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-semibold">Primary Specialty:</span> {gap.primarySpeciality}
-                </div>
-                <div>
-                  <span className="font-semibold">Supporting:</span> {gap.supportingSpeciality}
-                </div>
-                <div>
-                  <span className="font-semibold">Referral Required:</span> {gap.requiresReferral ? 'Yes' : 'No'}
-                </div>
-                <div>
-                  <span className="font-semibold">Coverage:</span> {gap.essentialPlanCover}
-                </div>
-              </div>
-
-              <div className="bg-blue-50 p-3 rounded text-sm">
-                <p className="font-semibold mb-1">Notes:</p>
-                <p className="text-muted-foreground">{gap.notesTOB}</p>
-              </div>
-
-              {!wasClosed && (
-                <div className="flex gap-2 flex-wrap pt-2">
-                  <Button 
-                    size="sm" 
-                    variant="default"
-                    onClick={() => handleAction(gap.ruleId, 'mark_complete')}
-                  >
-                    <CheckSquare className="h-4 w-4 mr-1" />
-                    Mark Complete
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => handleAction(gap.ruleId, 'schedule_appointment')}
-                  >
-                    <Calendar className="h-4 w-4 mr-1" />
-                    Schedule
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={() => handleAction(gap.ruleId, 'defer')}
-                  >
-                    <Clock className="h-4 w-4 mr-1" />
-                    Defer
-                  </Button>
-                  {gap.requiresReferral && (
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => handleAction(gap.ruleId, 'request_referral')}
-                    >
-                      <FileText className="h-4 w-4 mr-1" />
-                      Request Referral
-                    </Button>
+                <p className="font-semibold text-sm text-foreground">{gap.guideline}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant={gap.clinicalCriticality === 'High' ? 'destructive' : gap.clinicalCriticality === 'Medium' ? 'default' : 'secondary'} className="text-xs">
+                    {gap.clinicalCriticality}
+                  </Badge>
+                  {wasClosed && (
+                    <Badge className="bg-green-600 text-xs">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Closed
+                    </Badge>
                   )}
                 </div>
-              )}
+              </div>
             </div>
-          </CardContent>
+          </td>
+          <td className="p-4 text-center">
+            {gap.isCovered ? (
+              <Badge className="bg-green-100 text-green-800 border-green-200">
+                ✓ Covered
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-muted-foreground">
+                Not Covered
+              </Badge>
+            )}
+          </td>
+          <td className="p-4 text-sm text-muted-foreground">
+            {gap.essentialPlanCover}
+          </td>
+          <td className="p-4" onClick={(e) => e.stopPropagation()}>
+            {!wasClosed && (
+              <div className="flex gap-1">
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => handleAction(gap.ruleId, 'mark_complete')}
+                  title="Mark Complete"
+                >
+                  <CheckSquare className="h-4 w-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => handleAction(gap.ruleId, 'schedule_appointment')}
+                  title="Schedule"
+                >
+                  <Calendar className="h-4 w-4" />
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="ghost"
+                  onClick={() => handleAction(gap.ruleId, 'defer')}
+                  title="Defer"
+                >
+                  <Clock className="h-4 w-4" />
+                </Button>
+                {gap.requiresReferral && (
+                  <Button 
+                    size="sm" 
+                    variant="ghost"
+                    onClick={() => handleAction(gap.ruleId, 'request_referral')}
+                    title="Request Referral"
+                  >
+                    <FileText className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            )}
+          </td>
+        </tr>
+
+        {/* Expanded Details Row */}
+        {isExpanded && (
+          <tr key={`${gap.ruleId}-details`} className="border-b border-border bg-muted/30">
+            <td colSpan={4} className="p-6">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2 text-foreground">Gap Description</h4>
+                    <p className="text-sm text-muted-foreground">{gap.gap}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm mb-2 text-foreground">Recommended Action</h4>
+                    <p className="text-sm text-muted-foreground">{gap.recommendedAction}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-4 text-sm text-foreground">
+                  <div>
+                    <span className="font-semibold">Primary:</span> {gap.primarySpeciality}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Supporting:</span> {gap.supportingSpeciality}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Category:</span> {gap.category}
+                  </div>
+                  <div>
+                    <span className="font-semibold">Referral:</span> {gap.requiresReferral ? 'Yes' : 'No'}
+                  </div>
+                </div>
+
+                {gap.nurseQuestionnaire.wasAsked && (
+                  <div className="bg-green-50 p-3 rounded border border-green-200">
+                    <p className="font-semibold text-sm mb-1 text-green-900">Nurse Response:</p>
+                    <p className="text-sm text-green-700">
+                      {gap.nurseQuestionnaire.patientAnswer} - {gap.nurseQuestionnaire.closureReason}
+                    </p>
+                  </div>
+                )}
+
+                <div className="bg-blue-50 p-3 rounded text-sm border border-blue-200">
+                  <p className="font-semibold mb-1 text-blue-900">Notes:</p>
+                  <p className="text-blue-800">{gap.notesTOB}</p>
+                </div>
+              </div>
+            </td>
+          </tr>
         )}
-      </Card>
+      </>
     )
   }
 
-  const renderSection = (title: string, primaryGaps: GapData[], specialistGaps: GapData[]) => {
-    if (primaryGaps.length === 0 && specialistGaps.length === 0) return null
+  const renderTable = (title: string, gaps: GapData[]) => {
+    if (gaps.length === 0) return null
 
     return (
       <div className="mb-8">
-        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2 text-foreground">
           {title}
-          <Badge variant="outline">{primaryGaps.length + specialistGaps.length} gaps</Badge>
+          <Badge variant="outline">{gaps.length} gaps</Badge>
         </h2>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Primary Care Column */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3 text-teal-700">
-              Primary Care ({primaryGaps.length})
-            </h3>
-            {primaryGaps.length > 0 ? (
-              <div>{primaryGaps.map(gap => renderGapCard(gap))}</div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No primary care gaps</p>
-            )}
-          </div>
-
-          {/* Specialist Column */}
-          <div>
-            <h3 className="text-lg font-semibold mb-3 text-purple-700">
-              Specialist ({specialistGaps.length})
-            </h3>
-            {specialistGaps.length > 0 ? (
-              <div>{specialistGaps.map(gap => renderGapCard(gap))}</div>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">No specialist gaps</p>
-            )}
-          </div>
+        <div className="border border-border rounded-lg overflow-hidden bg-card">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left p-4 font-semibold text-sm text-foreground">Gap / Guideline</th>
+                <th className="text-center p-4 font-semibold text-sm w-32 text-foreground">Covered</th>
+                <th className="text-left p-4 font-semibold text-sm w-48 text-foreground">Practice Standard</th>
+                <th className="text-left p-4 font-semibold text-sm w-40 text-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-card">
+              {gaps.map(gap => renderGapRow(gap))}
+            </tbody>
+          </table>
         </div>
       </div>
     )
@@ -266,7 +270,7 @@ export function DoctorView({ dashboardData: propDashboardData }: DoctorViewProps
       <Card>
         <CardContent className="py-12">
           <EmptyState
-            icon={<Inbox className="h-10 w-10 text-teal-500" />}
+            icon={<Inbox className="h-10 w-10 text-[#1e2951]" />}
             title="Waiting for Questionnaire Data"
             description="The dashboard will automatically populate after the nurse completes and submits a patient questionnaire."
             action={
@@ -283,6 +287,13 @@ export function DoctorView({ dashboardData: propDashboardData }: DoctorViewProps
 
   return (
     <div className="space-y-6">
+      {/* Patient Header */}
+      {patientData && (
+        <div className="animate-slide-in">
+          <PatientHeader patient={patientData} />
+        </div>
+      )}
+
       {/* Header with Summary */}
       <Card>
         <CardHeader>
@@ -297,7 +308,7 @@ export function DoctorView({ dashboardData: propDashboardData }: DoctorViewProps
         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-3xl font-bold">{dashboardData.summary.total}</p>
+              <p className="text-3xl font-bold text-foreground">{dashboardData.summary.total}</p>
               <p className="text-sm text-muted-foreground">Total Gaps</p>
             </div>
             <div className="text-center">
@@ -316,18 +327,22 @@ export function DoctorView({ dashboardData: propDashboardData }: DoctorViewProps
         </CardContent>
       </Card>
 
-      {/* Essential Plan Covered Section */}
-      {renderSection(
-        '✓ Essential Plan Covered',
-        dashboardData.covered.primaryCare.gaps,
-        dashboardData.covered.specialist.gaps
+      {/* Primary Care Section */}
+      {renderTable(
+        'Primary Care',
+        [
+          ...dashboardData.covered.primaryCare.gaps,
+          ...dashboardData.notCovered.primaryCare.gaps
+        ]
       )}
 
-      {/* Best Practice Standards Section */}
-      {renderSection(
-        '◆ Best Practice Standards',
-        dashboardData.notCovered.primaryCare.gaps,
-        dashboardData.notCovered.specialist.gaps
+      {/* Referrals Section */}
+      {renderTable(
+        'Referrals',
+        [
+          ...dashboardData.covered.specialist.gaps,
+          ...dashboardData.notCovered.specialist.gaps
+        ]
       )}
     </div>
   )

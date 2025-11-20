@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { PriorityBadge } from './PriorityBadge'
+import { PatientHeader } from './PatientHeader'
 import { CheckCircle, Info, Loader2, RefreshCw, AlertCircle, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { webhookService } from '@/services/webhookService'
@@ -16,6 +17,8 @@ interface NurseViewProps {
   questions?: Question[]
   onSubmit?: (answers: QuestionAnswer[]) => void
   onDashboardReceived?: (dashboardData: any) => void
+  onPatientDataReceived?: (patientData: any) => void
+  patientData?: any
 }
 
 /**
@@ -30,17 +33,14 @@ function mapWebhookToQuestions(webhookResponse: any): Question[] {
     return []
   }
 
-  const { questions, metadata } = responseData.data
+  const { questions } = responseData.data
   
   return questions.map((q: any, index: number): Question => {
-    // Determine priority based on metadata breakdown
+    // Map clinical criticality to priority
     let priority: Question['priority'] = 'MEDIUM'
-    if (metadata?.breakdown) {
-      const { high, medium } = metadata.breakdown
-      if (index < high) priority = 'HIGH'
-      else if (index < high + medium) priority = 'MEDIUM'
-      else priority = 'LOW'
-    }
+    if (q.clinicalCriticality === 'High') priority = 'HIGH'
+    else if (q.clinicalCriticality === 'Medium') priority = 'MEDIUM'
+    else if (q.clinicalCriticality === 'Low') priority = 'LOW'
 
     // Map field type
     let inputType: Question['inputType'] = 'yes_no'
@@ -51,7 +51,7 @@ function mapWebhookToQuestions(webhookResponse: any): Question[] {
     } else if (q.fieldType === 'dropdown' || q.fieldType === 'select') {
       inputType = 'dropdown'
     } else if (q.fieldType === 'radio') {
-      inputType = 'yes_no' // Most radio buttons are yes/no
+      inputType = 'yes_no'
     }
 
     // Extract options if available
@@ -61,18 +61,18 @@ function mapWebhookToQuestions(webhookResponse: any): Question[] {
     }
 
     return {
-      id: `q${index + 1}`,
+      id: q.ruleId || `q${index + 1}`,
       question: q.fieldLabel || q.label || 'Question',
       inputType,
       priority,
-      gapId: `gap${index + 1}`,
+      gapId: q.ruleId || `gap${index + 1}`,
       options,
-      helpText: q.helpText
+      helpText: q.guideline ? `${q.guideline} (${q.category})` : undefined
     }
   })
 }
 
-export function NurseView({ questions: propQuestions, onSubmit, onDashboardReceived }: NurseViewProps) {
+export function NurseView({ questions: propQuestions, onSubmit, onDashboardReceived, onPatientDataReceived, patientData }: NurseViewProps) {
   // Patient selection state
   const [patientFiles, setPatientFiles] = useState<PatientFile[]>([])
   const [selectedPatient, setSelectedPatient] = useState<string>('')
@@ -150,6 +150,20 @@ export function NurseView({ questions: propQuestions, onSubmit, onDashboardRecei
       }
 
         setWebhookData(response)
+
+        // Extract patient data from response
+        const responseData = Array.isArray(response) ? response[0] : response
+        if (responseData?.data?.patient && onPatientDataReceived) {
+          const patientInfo = responseData.data.patient
+          const patient = {
+            id: patientInfo.patientId,
+            name: patientInfo.patientName,
+            dateOfBirth: patientInfo.dob || `${patientInfo.age} years old`,
+            mrn: patientInfo.patientId,
+            insurance: patientInfo.gender ? `${patientInfo.gender.charAt(0).toUpperCase() + patientInfo.gender.slice(1)}` : 'Unknown'
+          }
+          onPatientDataReceived(patient)
+        }
 
         // Map webhook data to Question[] format
         const mappedQuestions = mapWebhookToQuestions(response)
@@ -311,7 +325,7 @@ export function NurseView({ questions: propQuestions, onSubmit, onDashboardRecei
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserCircle className="w-6 h-6 text-teal-600" />
+            <UserCircle className="w-6 h-6 text-[#1e2951]" />
             Select Patient
           </CardTitle>
           <CardDescription>
@@ -400,8 +414,8 @@ export function NurseView({ questions: propQuestions, onSubmit, onDashboardRecei
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="bg-slate-50 p-4 rounded-lg overflow-auto max-h-96">
-              <pre className="text-xs">{JSON.stringify(webhookData, null, 2)}</pre>
+            <div className="bg-muted/30 p-4 rounded-lg overflow-auto max-h-96 border border-border">
+              <pre className="text-xs text-foreground">{JSON.stringify(webhookData, null, 2)}</pre>
             </div>
           </CardContent>
         </Card>
@@ -446,6 +460,13 @@ export function NurseView({ questions: propQuestions, onSubmit, onDashboardRecei
 
   return (
     <div className="max-w-3xl mx-auto">
+      {/* Patient Header */}
+      {patientData && (
+        <div className="mb-6 animate-slide-in">
+          <PatientHeader patient={patientData} />
+        </div>
+      )}
+
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Care Gap Questionnaire</CardTitle>
@@ -559,7 +580,7 @@ export function NurseView({ questions: propQuestions, onSubmit, onDashboardRecei
                       value={answers[question.id] || ''}
                       onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                       className={cn(
-                        "flex h-10 w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                        "flex h-10 w-full max-w-md rounded-md border border-input bg-background text-foreground px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
                         errors[question.id] && "border-red-500 focus-visible:ring-red-500"
                       )}
                       aria-label={question.question}
@@ -577,9 +598,12 @@ export function NurseView({ questions: propQuestions, onSubmit, onDashboardRecei
               </div>
 
               {question.helpText && (
-                <div className="flex items-start gap-2 text-sm p-3 rounded-md" style={{ backgroundColor: '#f0fdfa', color: '#0f766e' }}>
-                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: '#14b8a6' }} aria-hidden="true" />
-                  <p>{question.helpText}</p>
+                <div className="flex items-start gap-2 text-sm p-3 rounded-md bg-blue-50 border border-blue-200">
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-600" aria-hidden="true" />
+                  <div>
+                    <p className="font-semibold text-blue-900">Guideline:</p>
+                    <p className="text-blue-700">{question.helpText}</p>
+                  </div>
                 </div>
               )}
             </CardContent>

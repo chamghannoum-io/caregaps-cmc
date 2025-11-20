@@ -1,6 +1,5 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ["class"],
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -52,6 +51,31 @@ export default {
         error: {
           DEFAULT: "#ef4444",
           foreground: "#FFFFFF",
+        },
+        // iO Cortex color scheme
+        cortex: {
+          navy: {
+            50: "#e8eaf2",
+            100: "#d1d5e5",
+            200: "#a3abd1",
+            300: "#7581bd",
+            400: "#4757a9",
+            500: "#1e2951",
+            600: "#1a2344",
+            700: "#151d37",
+            800: "#11172a",
+            900: "#0c111d",
+          },
+          blue: {
+            400: "#60a5fa",
+            500: "#3b82f6",
+            600: "#2563eb",
+          },
+          orange: {
+            400: "#fb923c",
+            500: "#f97316",
+            600: "#ea580c",
+          },
         },
         teal: {
           50: "#f0fdfa",

@@ -1,23 +1,44 @@
 import { useState } from 'react'
-import { PatientHeader } from './components/PatientHeader'
 import { NurseView } from './components/NurseView'
 import { DoctorView } from './components/DoctorView'
 import { MobileWarning } from './components/MobileWarning'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs'
-import { mockPatient } from './data/mockData'
 
 function App() {
   const [activeTab, setActiveTab] = useState<string>('nurse')
   const [dashboardData, setDashboardData] = useState<any>(null)
+  const [patientData, setPatientData] = useState<any>(null)
 
   const handleDashboardReceived = (data: any) => {
     console.log('📊 Dashboard data received in App:', data)
     setDashboardData(data)
   }
 
+  const handlePatientDataReceived = (data: any) => {
+    console.log('👤 Patient data received in App:', data)
+    setPatientData(data)
+  }
+
   return (
-    <div className="min-h-screen" style={{ backgroundColor: '#F9FAFB', backgroundImage: 'linear-gradient(180deg, #F9FAFB 0%, #F3F4F6 100%)' }}>
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="bg-[#1e2951] shadow-lg border-b border-gray-300">
+        <div className="container mx-auto px-4 py-4 max-w-7xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-white/20 flex items-center justify-center font-bold text-xl text-white">
+                iO
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-white">Care Gap Management</h1>
+                <p className="text-xs text-white/90">Healthcare Quality & Performance</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* Skip Links for Accessibility */}
         <a
           href="#main-content"
@@ -26,15 +47,10 @@ function App() {
           Skip to main content
         </a>
 
-        {/* Patient Header */}
-        <header className="animate-slide-in">
-          <PatientHeader patient={mockPatient} />
-        </header>
-
         {/* Mobile Warning */}
         <MobileWarning />
 
-        {/* Main Content */}
+        {/* Main Content - Tabs at the top */}
         <main id="main-content" className="animate-fade-in">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="w-full justify-start mb-6">
@@ -46,15 +62,22 @@ function App() {
               </TabsTrigger>
             </TabsList>
 
-                    <TabsContent value="nurse">
-                      <div role="region" aria-label="Nurse questionnaire view">
-                        <NurseView onDashboardReceived={handleDashboardReceived} />
-                      </div>
-                    </TabsContent>
+            <TabsContent value="nurse">
+              <div role="region" aria-label="Nurse questionnaire view">
+                <NurseView 
+                  onDashboardReceived={handleDashboardReceived}
+                  onPatientDataReceived={handlePatientDataReceived}
+                  patientData={patientData}
+                />
+              </div>
+            </TabsContent>
 
             <TabsContent value="doctor">
               <div role="region" aria-label="Doctor care gap management view">
-                <DoctorView dashboardData={dashboardData} />
+                <DoctorView 
+                  dashboardData={dashboardData}
+                  patientData={patientData}
+                />
               </div>
             </TabsContent>
           </Tabs>
