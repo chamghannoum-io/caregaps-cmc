@@ -10,4 +10,19 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    port: 3000,
+    host: true,
+    open: true, // Auto-open browser
+    hmr: {
+      overlay: true // Show errors as overlay
+    }
+  },
+  // Performance optimizations
+  optimizeDeps: {
+    include: ['react', 'react-dom', '@supabase/supabase-js']
+  },
+  build: {
+    sourcemap: false
+  }
 })

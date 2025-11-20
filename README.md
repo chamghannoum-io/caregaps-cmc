@@ -5,7 +5,9 @@ A professional healthcare application interface for managing patient care gaps. 
 ## Features
 
 ### Nurse View
-- Quick questionnaire interface with 3 priority questions
+- Patient selection from Supabase storage
+- Loads patient data and triggers n8n workflow
+- Quick questionnaire interface
 - Multiple input types (date, yes/no, number, dropdown)
 - Real-time validation
 - Success state with immediate feedback
@@ -44,8 +46,37 @@ A professional healthcare application interface for managing patient care gaps. 
 - **Tailwind CSS** for styling
 - **shadcn/ui** component library
 - **Lucide React** for icons
+- **Supabase** for storage and database
+- **n8n** for workflow automation
 
 ## Getting Started
+
+### Prerequisites
+
+1. **Supabase Account** - You need access to the Supabase project
+2. **Node.js** - Version 18 or higher
+3. **n8n Webhook** - The webhook endpoint must be active
+
+### Supabase Setup
+
+Before running the application, you need to configure Supabase:
+
+1. See **[SUPABASE_SETUP.md](./SUPABASE_SETUP.md)** for detailed instructions
+2. Get your Supabase anon key from the dashboard
+3. Create a `.env` file with your credentials
+4. Upload patient `.txt` files to the storage bucket
+
+### Workflow Overview
+
+The application integrates Supabase and n8n:
+
+```
+1. Nurse selects patient → Loads .txt file from Supabase Storage
+2. File content → CORS Proxy → n8n Webhook (POST with patient data)
+3. n8n workflow processes → "Respond to Webhook" node returns questionnaire
+4. Nurse completes questionnaire → Submit answers → n8n Webhook
+5. n8n processes answers → Updates records
+```
 
 ### Installation
 
@@ -55,6 +86,23 @@ npm install
 
 ### Development
 
+**Step 1: Start the CORS Proxy (Required for n8n webhook)**
+
+In one terminal:
+```bash
+# Windows
+START_PROXY.bat
+
+# Mac/Linux
+npm install express cors node-fetch@2
+node proxy-server.js
+```
+
+The proxy will run on `http://localhost:3002`
+
+**Step 2: Start the React App**
+
+In another terminal:
 ```bash
 npm run dev
 ```

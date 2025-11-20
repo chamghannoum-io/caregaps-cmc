@@ -1,450 +1,334 @@
-import { useState, useMemo } from 'react'
-import type { CareGap, Coverage, GapStatus } from '@/types/index'
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { StatusBadge } from './StatusBadge'
-import { PriorityBadge } from './PriorityBadge'
-import { CoverageBadge } from './CoverageBadge'
 import { 
-  ChevronDown, 
-  ChevronRight, 
-  FileText, 
-  Calendar, 
-  FileDown, 
-  Mail,
-  Plus
+  CheckCircle, 
+  Clock,
+  ChevronDown,
+  ChevronRight,
+  Calendar,
+  CheckSquare,
+  FileText,
+  RefreshCw,
+  Inbox
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { EmptyState } from './EmptyState'
 
 interface DoctorViewProps {
-  gaps: CareGap[]
+  dashboardData?: DashboardData | null
 }
 
-interface FilterState {
-  coverage: 'ALL' | Coverage
-  specialty: string
-  status: 'ALL' | GapStatus
-}
-
-export function DoctorView({ gaps }: DoctorViewProps) {
-  const [filters, setFilters] = useState<FilterState>({
-    coverage: 'ALL',
-    specialty: 'ALL',
-    status: 'ALL'
-  })
-  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['covered-primary', 'notcovered-primary']))
-  const [expandedGaps, setExpandedGaps] = useState<Set<string>>(new Set())
-
-  // Calculate statistics
-  const stats = useMemo(() => {
-    const total = gaps.length
-    const closed = gaps.filter(g => g.status === 'CLOSED').length
-    const open = gaps.filter(g => g.status === 'OPEN' || g.status === 'PRIORITY').length
-    const priority = gaps.filter(g => g.priority === 'HIGH').length
-    
-    return { total, closed, open, priority }
-  }, [gaps])
-
-  // Filter gaps
-  const filteredGaps = useMemo(() => {
-    return gaps.filter(gap => {
-      if (filters.coverage !== 'ALL' && gap.coverage !== filters.coverage) return false
-      if (filters.specialty !== 'ALL' && gap.specialty !== filters.specialty) return false
-      if (filters.status !== 'ALL' && gap.status !== filters.status) return false
-      return true
-    })
-  }, [gaps, filters])
-
-  // Group gaps by coverage and specialty
-  const groupedGaps = useMemo(() => {
-    const groups: Record<string, { title: string; coverage: Coverage; gaps: CareGap[] }> = {}
-    
-    filteredGaps.forEach(gap => {
-      const key = `${gap.coverage.toLowerCase()}-${gap.specialty.toLowerCase()}`
-      
-      if (!groups[key]) {
-        groups[key] = {
-          title: formatSpecialty(gap.specialty),
-          coverage: gap.coverage,
-          gaps: []
-        }
-      }
-      
-      groups[key].gaps.push(gap)
-    })
-    
-    return groups
-  }, [filteredGaps])
-
-  const toggleGroup = (groupKey: string) => {
-    setExpandedGroups(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(groupKey)) {
-        newSet.delete(groupKey)
-      } else {
-        newSet.add(groupKey)
-      }
-      return newSet
-    })
+interface GapData {
+  ruleId: string
+  guideline: string
+  category: string
+  gap: string
+  questionText: string
+  responseFormat: string
+  expectedAnswer: string
+  clinicalCriticality: 'High' | 'Medium' | 'Low'
+  recommendedAction: string
+  notesTOB: string
+  essentialPlanCover: string
+  isCovered: boolean
+  primarySpeciality: string
+  supportingSpeciality: string
+  requiresReferral: boolean
+  nurseQuestionnaire: {
+    wasAsked: boolean
+    wasClosed: boolean
+    askedBy: string | null
+    patientAnswer: string | null
+    closureReason: string | null
+    status: string
   }
+}
+
+interface DashboardData {
+  patientId: string
+  summary: {
+    total: number
+    closedByNurse: number
+    requiresAction: number
+    highPriority: number
+  }
+  covered: {
+    primaryCare: { count: number; gaps: GapData[] }
+    specialist: { count: number; gaps: GapData[] }
+  }
+  notCovered: {
+    primaryCare: { count: number; gaps: GapData[] }
+    specialist: { count: number; gaps: GapData[] }
+  }
+}
+
+export function DoctorView({ dashboardData: propDashboardData }: DoctorViewProps) {
+  const [dashboardData] = useState<DashboardData | null>(propDashboardData || null)
+  const [expandedGaps, setExpandedGaps] = useState<Set<string>>(new Set())
 
   const toggleGap = (gapId: string) => {
     setExpandedGaps(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(gapId)) {
-        newSet.delete(gapId)
+      const next = new Set(prev)
+      if (next.has(gapId)) {
+        next.delete(gapId)
       } else {
-        newSet.add(gapId)
+        next.add(gapId)
       }
-      return newSet
+      return next
     })
   }
 
-  const coveredGroups = Object.entries(groupedGaps).filter(([_, group]) => group.coverage === 'COVERED')
-  const notCoveredGroups = Object.entries(groupedGaps).filter(([_, group]) => group.coverage === 'NOT_COVERED')
+  const handleAction = (gapId: string, action: string) => {
+    console.log(`Action ${action} on gap ${gapId}`)
+    
+    const actionMessages: Record<string, string> = {
+      mark_complete: '✓ Gap marked as complete',
+      schedule_appointment: '📅 Appointment scheduled',
+      defer: '⏰ Gap deferred for later review',
+      request_referral: '📄 Referral request submitted'
+    }
+
+    // TODO: Send action back to n8n for logging
+    alert(actionMessages[action] || 'Action recorded')
+  }
+
+  const renderGapCard = (gap: GapData) => {
+    const isExpanded = expandedGaps.has(gap.ruleId)
+    const status = gap.nurseQuestionnaire.status
+    const wasClosed = status === 'CLOSED_BY_NURSE'
+
+    return (
+      <Card 
+        key={gap.ruleId} 
+        className={`mb-3 ${wasClosed ? 'border-green-200 bg-green-50' : ''}`}
+      >
+        <CardHeader 
+          className="cursor-pointer hover:bg-slate-50 transition-colors pb-4"
+          onClick={() => toggleGap(gap.ruleId)}
+        >
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                <CardTitle className="text-base">{gap.guideline}</CardTitle>
+              </div>
+              
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant={gap.clinicalCriticality === 'High' ? 'destructive' : gap.clinicalCriticality === 'Medium' ? 'default' : 'secondary'}>
+                  {gap.clinicalCriticality}
+                </Badge>
+                
+                {wasClosed ? (
+                  <Badge className="bg-green-600">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Closed by Nurse
+                  </Badge>
+                ) : status === 'NOT_ASKED' ? (
+                  <Badge variant="outline">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Requires Action
+                  </Badge>
+                ) : null}
+
+                <Badge variant="outline">{gap.category}</Badge>
+              </div>
+
+              {wasClosed && gap.nurseQuestionnaire.patientAnswer && (
+                <p className="text-sm text-green-700 mt-2">
+                  Nurse: {gap.nurseQuestionnaire.patientAnswer} - {gap.nurseQuestionnaire.closureReason}
+                </p>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+
+        {isExpanded && (
+          <CardContent className="pt-0 border-t">
+            <div className="space-y-4 mt-4">
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Gap Description</h4>
+                <p className="text-sm text-muted-foreground">{gap.gap}</p>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-sm mb-1">Recommended Action</h4>
+                <p className="text-sm text-muted-foreground">{gap.recommendedAction}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-semibold">Primary Specialty:</span> {gap.primarySpeciality}
+                </div>
+                <div>
+                  <span className="font-semibold">Supporting:</span> {gap.supportingSpeciality}
+                </div>
+                <div>
+                  <span className="font-semibold">Referral Required:</span> {gap.requiresReferral ? 'Yes' : 'No'}
+                </div>
+                <div>
+                  <span className="font-semibold">Coverage:</span> {gap.essentialPlanCover}
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-3 rounded text-sm">
+                <p className="font-semibold mb-1">Notes:</p>
+                <p className="text-muted-foreground">{gap.notesTOB}</p>
+              </div>
+
+              {!wasClosed && (
+                <div className="flex gap-2 flex-wrap pt-2">
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={() => handleAction(gap.ruleId, 'mark_complete')}
+                  >
+                    <CheckSquare className="h-4 w-4 mr-1" />
+                    Mark Complete
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleAction(gap.ruleId, 'schedule_appointment')}
+                  >
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Schedule
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleAction(gap.ruleId, 'defer')}
+                  >
+                    <Clock className="h-4 w-4 mr-1" />
+                    Defer
+                  </Button>
+                  {gap.requiresReferral && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => handleAction(gap.ruleId, 'request_referral')}
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      Request Referral
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+    )
+  }
+
+  const renderSection = (title: string, primaryGaps: GapData[], specialistGaps: GapData[]) => {
+    if (primaryGaps.length === 0 && specialistGaps.length === 0) return null
+
+    return (
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+          {title}
+          <Badge variant="outline">{primaryGaps.length + specialistGaps.length} gaps</Badge>
+        </h2>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Primary Care Column */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3 text-teal-700">
+              Primary Care ({primaryGaps.length})
+            </h3>
+            {primaryGaps.length > 0 ? (
+              <div>{primaryGaps.map(gap => renderGapCard(gap))}</div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No primary care gaps</p>
+            )}
+          </div>
+
+          {/* Specialist Column */}
+          <div>
+            <h3 className="text-lg font-semibold mb-3 text-purple-700">
+              Specialist ({specialistGaps.length})
+            </h3>
+            {specialistGaps.length > 0 ? (
+              <div>{specialistGaps.map(gap => renderGapCard(gap))}</div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No specialist gaps</p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Waiting for dashboard data
+  if (!dashboardData) {
+    return (
+      <Card>
+        <CardContent className="py-12">
+          <EmptyState
+            icon={<Inbox className="h-10 w-10 text-teal-500" />}
+            title="Waiting for Questionnaire Data"
+            description="The dashboard will automatically populate after the nurse completes and submits a patient questionnaire."
+            action={
+              <Button onClick={() => window.location.reload()} variant="outline">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+            }
+          />
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-foreground">{stats.total}</p>
-              <p className="text-sm text-muted-foreground mt-1">Total Gaps</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-green-600">{stats.closed}</p>
-              <p className="text-sm text-muted-foreground mt-1">Closed by Nurse</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-red-600">{stats.open}</p>
-              <p className="text-sm text-muted-foreground mt-1">Requires Action</p>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="text-center">
-              <p className="text-3xl font-bold text-orange-600">{stats.priority}</p>
-              <p className="text-sm text-muted-foreground mt-1">High Priority</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
+      {/* Header with Summary */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap gap-3">
-              <select
-                value={filters.coverage}
-                onChange={(e) => setFilters(prev => ({ ...prev, coverage: e.target.value as FilterState['coverage'] }))}
-                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Filter by coverage"
-              >
-                <option value="ALL">All Coverage</option>
-                <option value="COVERED">Covered</option>
-                <option value="NOT_COVERED">Not Covered</option>
-              </select>
-
-              <select
-                value={filters.specialty}
-                onChange={(e) => setFilters(prev => ({ ...prev, specialty: e.target.value }))}
-                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Filter by specialty"
-              >
-                <option value="ALL">All Specialties</option>
-                <option value="PRIMARY_CARE">Primary Care</option>
-                <option value="SPECIALIST">Specialist</option>
-                <option value="OB_GYN">OB/GYN</option>
-              </select>
-
-              <select
-                value={filters.status}
-                onChange={(e) => setFilters(prev => ({ ...prev, status: e.target.value as FilterState['status'] }))}
-                className="flex h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                aria-label="Filter by status"
-              >
-                <option value="ALL">All Status</option>
-                <option value="CLOSED">Closed</option>
-                <option value="OPEN">Open</option>
-                <option value="PRIORITY">Priority</option>
-                <option value="PENDING">Pending</option>
-              </select>
-
-              {(filters.coverage !== 'ALL' || filters.specialty !== 'ALL' || filters.status !== 'ALL') && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setFilters({ coverage: 'ALL', specialty: 'ALL', status: 'ALL' })}
-                >
-                  Clear Filters
-                </Button>
-              )}
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Care Gap Dashboard</CardTitle>
+            <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-4">
+            <div className="text-center">
+              <p className="text-3xl font-bold">{dashboardData.summary.total}</p>
+              <p className="text-sm text-muted-foreground">Total Gaps</p>
             </div>
-
-            {filteredGaps.length !== gaps.length && (
-              <p className="text-sm text-muted-foreground">
-                Showing {filteredGaps.length} of {gaps.length} gaps
-              </p>
-            )}
+            <div className="text-center">
+              <p className="text-3xl font-bold text-green-600">{dashboardData.summary.closedByNurse}</p>
+              <p className="text-sm text-muted-foreground">Closed by Nurse</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-orange-600">{dashboardData.summary.requiresAction}</p>
+              <p className="text-sm text-muted-foreground">Requires Action</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl font-bold text-red-600">{dashboardData.summary.highPriority}</p>
+              <p className="text-sm text-muted-foreground">High Priority</p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Covered Services */}
-      {coveredGroups.length > 0 && (
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span>Covered Services</span>
-              <Badge variant="success">{coveredGroups.reduce((acc, [_, g]) => acc + g.gaps.length, 0)} gaps</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {coveredGroups.map(([key, group]) => (
-              <GapGroup
-                key={key}
-                groupKey={key}
-                title={group.title}
-                gaps={group.gaps}
-                isExpanded={expandedGroups.has(key)}
-                onToggle={() => toggleGroup(key)}
-                expandedGaps={expandedGaps}
-                onToggleGap={toggleGap}
-              />
-            ))}
-          </CardContent>
-        </Card>
+      {/* Essential Plan Covered Section */}
+      {renderSection(
+        '✓ Essential Plan Covered',
+        dashboardData.covered.primaryCare.gaps,
+        dashboardData.covered.specialist.gaps
       )}
 
-      {/* Not Covered Services */}
-      {notCoveredGroups.length > 0 && (
-        <Card className="border-l-4 border-l-red-500">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <span>Not Covered Services</span>
-              <Badge variant="error">{notCoveredGroups.reduce((acc, [_, g]) => acc + g.gaps.length, 0)} gaps</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {notCoveredGroups.map(([key, group]) => (
-              <GapGroup
-                key={key}
-                groupKey={key}
-                title={group.title}
-                gaps={group.gaps}
-                isExpanded={expandedGroups.has(key)}
-                onToggle={() => toggleGroup(key)}
-                expandedGaps={expandedGaps}
-                onToggleGap={toggleGap}
-              />
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Action Buttons */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-wrap gap-3">
-            <Button variant="outline" className="flex items-center gap-2">
-              <FileDown className="h-4 w-4" />
-              Export Report
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Create Care Plan
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Schedule Appointments
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Email Summary
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
-
-interface GapGroupProps {
-  groupKey: string
-  title: string
-  gaps: CareGap[]
-  isExpanded: boolean
-  onToggle: () => void
-  expandedGaps: Set<string>
-  onToggleGap: (gapId: string) => void
-}
-
-function GapGroup({ groupKey, title, gaps, isExpanded, onToggle, expandedGaps, onToggleGap }: GapGroupProps) {
-  return (
-    <div className="border rounded-lg">
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
-        aria-expanded={isExpanded}
-        aria-controls={`group-${groupKey}`}
-      >
-        <div className="flex items-center gap-2">
-          {isExpanded ? (
-            <ChevronDown className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          ) : (
-            <ChevronRight className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
-          )}
-          <span className="font-semibold">{title}</span>
-          <Badge variant="outline">{gaps.length}</Badge>
-        </div>
-      </button>
-
-      {isExpanded && (
-        <div id={`group-${groupKey}`} className="p-4 pt-0 space-y-3">
-          {gaps.map(gap => (
-            <GapCard
-              key={gap.id}
-              gap={gap}
-              isExpanded={expandedGaps.has(gap.id)}
-              onToggle={() => onToggleGap(gap.id)}
-            />
-          ))}
-        </div>
+      {/* Best Practice Standards Section */}
+      {renderSection(
+        '◆ Best Practice Standards',
+        dashboardData.notCovered.primaryCare.gaps,
+        dashboardData.notCovered.specialist.gaps
       )}
     </div>
   )
 }
-
-interface GapCardProps {
-  gap: CareGap
-  isExpanded: boolean
-  onToggle: () => void
-}
-
-function GapCard({ gap, isExpanded, onToggle }: GapCardProps) {
-  return (
-    <div className={cn(
-      "border rounded-lg transition-all",
-      gap.status === 'CLOSED' && "bg-green-50/50",
-      gap.status === 'PRIORITY' && "bg-orange-50/50"
-    )}>
-      <button
-        onClick={onToggle}
-        className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left"
-        aria-expanded={isExpanded}
-        aria-controls={`gap-${gap.id}`}
-      >
-        <div className="flex items-center gap-3 flex-1">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h4 className="font-semibold">{gap.title}</h4>
-              <StatusBadge status={gap.status} />
-              <PriorityBadge priority={gap.priority} />
-            </div>
-            {gap.nurseStatus !== 'NOT_ASKED' && (
-              <p className="text-sm text-muted-foreground">
-                Asked by Nurse: {gap.nurseAnswer}
-              </p>
-            )}
-          </div>
-        </div>
-        {isExpanded ? (
-          <ChevronDown className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" aria-hidden="true" />
-        ) : (
-          <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 ml-2" aria-hidden="true" />
-        )}
-      </button>
-
-      {isExpanded && (
-        <div id={`gap-${gap.id}`} className="px-4 pb-4 space-y-4 border-t">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Guideline</p>
-              <p className="text-sm">{gap.guideline}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Category</p>
-              <p className="text-sm">{gap.category}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Specialty</p>
-              <p className="text-sm">{formatSpecialty(gap.specialty)}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Coverage</p>
-              <CoverageBadge coverage={gap.coverage} cost={gap.estimatedCost} />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Referral Required</p>
-              <p className="text-sm">{gap.referralRequired ? 'Yes' : 'No'}</p>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Nurse Status</p>
-              <Badge variant={gap.nurseStatus === 'CLOSED' ? 'success' : 'secondary'}>
-                {formatNurseStatus(gap.nurseStatus)}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-md border" style={{ backgroundColor: '#f0fdfa', borderColor: '#ccfbf1' }}>
-            <p className="text-sm font-medium mb-1" style={{ color: '#134e4a' }}>Recommended Action</p>
-            <p className="text-sm" style={{ color: '#115e59' }}>{gap.recommendedAction}</p>
-          </div>
-
-          <div className="flex gap-2 flex-wrap">
-            <Button size="sm" variant="default">
-              <Plus className="h-4 w-4 mr-1" />
-              Mark Complete
-            </Button>
-            <Button size="sm" variant="outline">
-              <Calendar className="h-4 w-4 mr-1" />
-              Schedule
-            </Button>
-            <Button size="sm" variant="outline">
-              Add Note
-            </Button>
-            <Button size="sm" variant="outline">
-              Defer
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function formatSpecialty(specialty: string): string {
-  const map: Record<string, string> = {
-    PRIMARY_CARE: 'Primary Care',
-    SPECIALIST: 'Specialist',
-    OB_GYN: 'OB/GYN',
-    ENDOCRINOLOGY: 'Endocrinology'
-  }
-  return map[specialty] || specialty
-}
-
-function formatNurseStatus(status: string): string {
-  const map: Record<string, string> = {
-    NOT_ASKED: 'Not Asked',
-    ASKED_OPEN: 'Asked but Open',
-    CLOSED: 'Closed by Nurse'
-  }
-  return map[status] || status
-}
-
