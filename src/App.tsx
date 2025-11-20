@@ -12,11 +12,21 @@ function App() {
   const handleDashboardReceived = (data: any) => {
     console.log('📊 Dashboard data received in App:', data)
     setDashboardData(data)
+    // Automatically switch to doctor view when dashboard data is received
+    setActiveTab('doctor')
   }
 
   const handlePatientDataReceived = (data: any) => {
     console.log('👤 Patient data received in App:', data)
     setPatientData(data)
+  }
+
+  const handleReviewComplete = () => {
+    console.log('✅ Review complete, returning to nurse view')
+    // Reset data and return to nurse view
+    setDashboardData(null)
+    setPatientData(null)
+    setActiveTab('nurse')
   }
 
   return (
@@ -77,6 +87,7 @@ function App() {
                 <DoctorView 
                   dashboardData={dashboardData}
                   patientData={patientData}
+                  onReviewComplete={handleReviewComplete}
                 />
               </div>
             </TabsContent>

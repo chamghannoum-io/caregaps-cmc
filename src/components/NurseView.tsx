@@ -256,9 +256,10 @@ export function NurseView({ questions: propQuestions, onSubmit, onDashboardRecei
         // Check if response contains dashboard data
         const dashboardResponse = Array.isArray(submitResponse) ? submitResponse[0] : submitResponse
         if (dashboardResponse?.action === 'display_dashboard' && dashboardResponse?.data) {
-          console.log('📊 Dashboard data received from n8n')
+          console.log('📊 Dashboard data received from n8n:', dashboardResponse)
           if (onDashboardReceived) {
-            onDashboardReceived(dashboardResponse.data)
+            // Pass the entire response which includes sessionId and resumeUrl
+            onDashboardReceived(dashboardResponse)
           }
         }
       } catch (error) {

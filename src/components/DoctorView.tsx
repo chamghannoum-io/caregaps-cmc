@@ -1,10 +1,12 @@
 import { useState } from 'react'
+import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { PatientHeader } from './PatientHeader'
 import { Toast } from './Toast'
 import type { ToastType } from './Toast'
+import { webhookService } from '@/services/webhookService'
 import { 
   CheckCircle, 
   Clock,
@@ -14,13 +16,16 @@ import {
   CheckSquare,
   FileText,
   RefreshCw,
-  Inbox
+  Inbox,
+  Send,
+  Loader2
 } from 'lucide-react'
 import { EmptyState } from './EmptyState'
 
 interface DoctorViewProps {
-  dashboardData?: DashboardData | null
+  dashboardData?: any
   patientData?: any
+  onReviewComplete?: () => void
 }
 
 interface GapData {
@@ -67,35 +72,16 @@ interface GapData {
   }
 }
 
-interface DashboardData {
-  patientId: string
-  summary: {
-    total: number
-    closedByNurse: number
-    requiresAction: number
-    highPriority: number
-  }
-  covered: {
-    primaryCare: { count: number; gaps: GapData[] }
-    specialist: { count: number; gaps: GapData[] }
-  }
-  notCovered: {
-    primaryCare: { count: number; gaps: GapData[] }
-    specialist: { count: number; gaps: GapData[] }
-  }
-  benefitSummary?: {
-    fullyCovered: number
-    partiallyCovered: number
-    notCovered: number
-    network: string
-    payer: string
-  }
-}
-
-export function DoctorView({ dashboardData: propDashboardData, patientData }: DoctorViewProps) {
-  const [dashboardData] = useState<DashboardData | null>(propDashboardData || null)
+export function DoctorView({ dashboardData: propDashboardData, patientData, onReviewComplete }: DoctorViewProps) {
+  const [dashboardData] = useState<any>(propDashboardData || null)
   const [expandedGaps, setExpandedGaps] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<{ type: ToastType; title: string; description?: string } | null>(null)
+  const [completing, setCompleting] = useState(false)
+  const [completed, setCompleted] = useState(false)
+  const [actionsLog, setActionsLog] = useState<Array<{ gapId: string; action: string; timestamp: string }>>([])
+
+  // Handle both data structures: direct data or nested under 'data' property
+  const data = dashboardData?.data || dashboardData
 
   const toggleGap = (gapId: string) => {
     setExpandedGaps(prev => {
@@ -111,6 +97,13 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
 
   const handleAction = (gapId: string, action: string) => {
     console.log(`Action ${action} on gap ${gapId}`)
+    
+    // Log the action
+    setActionsLog(prev => [...prev, {
+      gapId,
+      action,
+      timestamp: new Date().toISOString()
+    }])
     
     const actionMessages: Record<string, { title: string; description: string }> = {
       mark_complete: { 
@@ -134,8 +127,70 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
     // Show toast notification
     const message = actionMessages[action] || { title: 'Action recorded', description: 'The action has been recorded.' }
     setToast({ type: 'success', ...message })
+  }
 
-    // TODO: Send action back to n8n for logging
+  const handleCompleteReview = async () => {
+    const sessionId = dashboardData?.sessionId
+    const resumeUrl = dashboardData?.resumeUrl
+
+    console.log('🔍 Debug - dashboardData:', dashboardData)
+    console.log('🔍 Debug - sessionId:', sessionId)
+    console.log('🔍 Debug - resumeUrl:', resumeUrl)
+
+    if (!sessionId || !resumeUrl) {
+      setToast({
+        type: 'error',
+        title: 'Cannot complete review',
+        description: 'Missing session information. Please reload the page.'
+      })
+      return
+    }
+
+    try {
+      setCompleting(true)
+
+      // Prepare the review completion payload
+      const completionPayload = {
+        action: 'doctor_review_complete',
+        sessionId: sessionId,
+        reviewedBy: 'Doctor',
+        reviewedAt: new Date().toISOString(),
+        actionsLog: actionsLog,
+        summary: {
+          totalGaps: data?.summary?.total || 0,
+          actionsPerformed: actionsLog.length,
+          reviewCompleted: true
+        },
+        resumeUrl: resumeUrl
+      }
+
+      console.log('📤 Submitting doctor review to n8n:', completionPayload)
+      await webhookService.submitResponses(completionPayload, resumeUrl)
+      console.log('✅ Doctor review submitted successfully')
+
+      setCompleted(true)
+      setToast({
+        type: 'success',
+        title: 'Review Complete',
+        description: 'Returning to nurse view for next patient...'
+      })
+
+      // Wait 2 seconds to show success message, then return to nurse view
+      setTimeout(() => {
+        if (onReviewComplete) {
+          onReviewComplete()
+        }
+      }, 2000)
+    } catch (error) {
+      console.error('❌ Failed to submit doctor review:', error)
+      setToast({
+        type: 'error',
+        title: 'Submission Failed',
+        description: error instanceof Error ? error.message : 'Failed to submit review. Please try again.'
+      })
+    } finally {
+      setCompleting(false)
+    }
   }
 
   const renderGapRow = (gap: GapData) => {
@@ -356,7 +411,11 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
               </tr>
             </thead>
             <tbody className="bg-card">
-              {gaps.map(gap => renderGapRow(gap))}
+              {gaps.map(gap => (
+                <React.Fragment key={gap.ruleId}>
+                  {renderGapRow(gap)}
+                </React.Fragment>
+              ))}
             </tbody>
           </table>
         </div>
@@ -415,30 +474,30 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+         <CardContent>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
-              <p className="text-3xl font-bold text-foreground">{dashboardData.summary.total}</p>
+              <p className="text-3xl font-bold text-foreground">{data?.summary?.total || 0}</p>
               <p className="text-sm text-muted-foreground">Total Gaps</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-green-600">{dashboardData.summary.closedByNurse}</p>
+              <p className="text-3xl font-bold text-green-600">{data?.summary?.closedByNurse || 0}</p>
               <p className="text-sm text-muted-foreground">Closed by Nurse</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-orange-600">{dashboardData.summary.requiresAction}</p>
+              <p className="text-3xl font-bold text-orange-600">{data?.summary?.requiresAction || 0}</p>
               <p className="text-sm text-muted-foreground">Requires Action</p>
             </div>
             <div className="text-center">
-              <p className="text-3xl font-bold text-red-600">{dashboardData.summary.highPriority}</p>
+              <p className="text-3xl font-bold text-red-600">{data?.summary?.highPriority || 0}</p>
               <p className="text-sm text-muted-foreground">High Priority</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Benefits Summary */}
-      {dashboardData.benefitSummary && (
+       {/* Benefits Summary */}
+      {data?.benefitSummary && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Insurance Benefits Summary</CardTitle>
@@ -448,25 +507,25 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
                   <span className="text-sm font-medium text-green-900">Fully Covered</span>
-                  <span className="text-2xl font-bold text-green-600">{dashboardData.benefitSummary.fullyCovered}</span>
+                  <span className="text-2xl font-bold text-green-600">{data.benefitSummary.fullyCovered}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                   <span className="text-sm font-medium text-yellow-900">Partially Covered</span>
-                  <span className="text-2xl font-bold text-yellow-600">{dashboardData.benefitSummary.partiallyCovered}</span>
+                  <span className="text-2xl font-bold text-yellow-600">{data.benefitSummary.partiallyCovered}</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
                   <span className="text-sm font-medium text-red-900">Not Covered</span>
-                  <span className="text-2xl font-bold text-red-600">{dashboardData.benefitSummary.notCovered}</span>
+                  <span className="text-2xl font-bold text-red-600">{data.benefitSummary.notCovered}</span>
                 </div>
               </div>
               <div className="flex flex-col justify-center space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
                 <div>
                   <p className="text-xs text-blue-700 font-semibold mb-1">Insurance Network</p>
-                  <p className="text-lg font-bold text-blue-900">{dashboardData.benefitSummary.network}</p>
+                  <p className="text-lg font-bold text-blue-900">{data.benefitSummary.network}</p>
                 </div>
                 <div>
                   <p className="text-xs text-blue-700 font-semibold mb-1">Insurance Payer</p>
-                  <p className="text-sm text-blue-900">{dashboardData.benefitSummary.payer}</p>
+                  <p className="text-sm text-blue-900">{data.benefitSummary.payer}</p>
                 </div>
               </div>
             </div>
@@ -474,12 +533,12 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
         </Card>
       )}
 
-      {/* Primary Care Section */}
+       {/* Primary Care Section */}
       {renderTable(
         'Primary Care',
         [
-          ...dashboardData.covered.primaryCare.gaps,
-          ...dashboardData.notCovered.primaryCare.gaps
+          ...(data?.covered?.primaryCare?.gaps || []),
+          ...(data?.notCovered?.primaryCare?.gaps || [])
         ]
       )}
 
@@ -487,9 +546,63 @@ export function DoctorView({ dashboardData: propDashboardData, patientData }: Do
       {renderTable(
         'Referrals',
         [
-          ...dashboardData.covered.specialist.gaps,
-          ...dashboardData.notCovered.specialist.gaps
+          ...(data?.covered?.specialist?.gaps || []),
+          ...(data?.notCovered?.specialist?.gaps || [])
         ]
+      )}
+
+      {/* Complete Review Section */}
+      {!completed && (
+        <Card className="border-l-4 border-l-[#1e2951]">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">Complete Review</h3>
+                <p className="text-sm text-muted-foreground">
+                  Submit your care gap review 
+                  {actionsLog.length > 0 && ` • ${actionsLog.length} action${actionsLog.length > 1 ? 's' : ''} recorded`}
+                </p>
+              </div>
+              <Button
+                size="lg"
+                onClick={handleCompleteReview}
+                disabled={completing}
+                className="min-w-[180px]"
+              >
+                {completing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5 mr-2" />
+                    Complete Review
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Completion Confirmation */}
+      {completed && (
+        <Card className="border-l-4 border-l-green-500 bg-green-50">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-green-900 mb-1">Review Complete</h3>
+                <p className="text-sm text-green-700">
+                  Your care gap review has been successfully submitted and the workflow has been completed.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   )
