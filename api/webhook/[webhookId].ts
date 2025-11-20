@@ -16,7 +16,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const webhookId = req.query.webhookId || '97f934a7-db3a-478f-a0f0-1cebca68112d';
+    // Extract webhookId from URL path
+    const { webhookId } = req.query;
     const n8nUrl = `https://n8n-test.iohealth.com/webhook/${webhookId}`;
 
     console.log('Proxying request to n8n:', n8nUrl);
